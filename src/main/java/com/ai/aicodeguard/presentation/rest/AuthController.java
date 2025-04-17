@@ -1,8 +1,8 @@
 package com.ai.aicodeguard.presentation.rest;
 
-import com.ai.aicodeguard.application.auth.LoginDTO;
-import com.ai.aicodeguard.application.auth.RegisterDTO;
-import com.ai.aicodeguard.application.auth.UpdatePasswordDTO;
+import com.ai.aicodeguard.presentation.request.auth.LoginRequest;
+import com.ai.aicodeguard.presentation.request.auth.RegisterRequest;
+import com.ai.aicodeguard.presentation.request.auth.UpdatePasswordRequest;
 import com.ai.aicodeguard.application.service.interfaces.SysUserService;
 import com.ai.aicodeguard.infrastructure.common.util.ShiroUtils;
 import com.ai.aicodeguard.presentation.response.WebResponse;
@@ -25,8 +25,8 @@ public class AuthController {
     private SysUserService sysUserService;
 
     @PostMapping("/login")
-    public WebResponse<String> login(@Valid @RequestBody LoginDTO loginDTO) {
-        String token = sysUserService.login(loginDTO);
+    public WebResponse<String> login(@Valid @RequestBody LoginRequest loginRequest) {
+        String token = sysUserService.login(loginRequest);
         return WebResponse.success(token);
     }
 
@@ -37,15 +37,15 @@ public class AuthController {
     }
 
     @PostMapping("/register")
-    public WebResponse<Void> register(@Valid @RequestBody RegisterDTO registerDTO) {
-        sysUserService.register(registerDTO);
+    public WebResponse<Void> register(@Valid @RequestBody RegisterRequest registerRequest) {
+        sysUserService.register(registerRequest);
         return WebResponse.success();
     }
 
     @PostMapping("/password")
-    public WebResponse<Void> updatePassword(@RequestBody UpdatePasswordDTO updatePasswordDTO) {
+    public WebResponse<Void> updatePassword(@RequestBody UpdatePasswordRequest updatePasswordRequest) {
         String account = ShiroUtils.getUserEntity().getAccount();
-        sysUserService.updatePassword(account, updatePasswordDTO);
+        sysUserService.updatePassword(account, updatePasswordRequest);
         return WebResponse.success();
     }
 

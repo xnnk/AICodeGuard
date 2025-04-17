@@ -1,5 +1,6 @@
 package com.ai.aicodeguard.domain.user;
 
+import com.ai.aicodeguard.infrastructure.common.enums.ForbiddenEnum;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.Data;
@@ -49,4 +50,12 @@ public class SysUser {
      * 是否禁用 0：否；1：是
      */
     private String forbidden;
+
+
+    /**
+     * 是否被禁用
+     */
+    public boolean checkEnabled() {
+        return this.forbidden.equals(ForbiddenEnum.DISABLE.getCode().toString());
+    }
 }

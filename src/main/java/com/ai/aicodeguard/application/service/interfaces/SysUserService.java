@@ -1,8 +1,8 @@
 package com.ai.aicodeguard.application.service.interfaces;
 
-import com.ai.aicodeguard.application.auth.LoginDTO;
-import com.ai.aicodeguard.application.auth.RegisterDTO;
-import com.ai.aicodeguard.application.auth.UpdatePasswordDTO;
+import com.ai.aicodeguard.presentation.request.auth.LoginRequest;
+import com.ai.aicodeguard.presentation.request.auth.RegisterRequest;
+import com.ai.aicodeguard.presentation.request.auth.UpdatePasswordRequest;
 import com.ai.aicodeguard.domain.user.SysUser;
 
 import java.util.List;
@@ -15,10 +15,10 @@ import java.util.Set;
  * @Date: 2025/4/8 12:01
  */
 public interface SysUserService {
-    String login(LoginDTO loginDTO);
+    String login(LoginRequest loginRequest);
     SysUser findByAccount(String account);
-    void register(RegisterDTO registerDTO);
-    void updatePassword(String account, UpdatePasswordDTO updatePasswordDTO);
+    void register(RegisterRequest registerRequest);
+    void updatePassword(String account, UpdatePasswordRequest updatePasswordRequest);
     String refreshToken(String oldToken);
     Set<String> getUserPermissions(Integer userId);
     Set<String> getUserRoles(Integer userId);

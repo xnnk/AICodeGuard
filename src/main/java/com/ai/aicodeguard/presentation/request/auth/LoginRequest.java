@@ -1,22 +1,19 @@
-package com.ai.aicodeguard.application.auth;
+package com.ai.aicodeguard.presentation.request.auth;
 
 import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
 
 /**
- * @ClassName: RegisterDTO
+ * @ClassName: LoginDTO
  * @Description:
  * @Author: LZX
- * @Date: 2025/4/8 18:28
+ * @Date: 2025/4/8 12:00
  */
 @Data
-public class RegisterDTO {
+public class LoginRequest {
     @NotBlank(message = "账号不能为空")
     private String account;
 
     @NotBlank(message = "密码不能为空")
     private String password;
-
-    @NotBlank(message = "姓名不能为空")
-    private String name;
 }

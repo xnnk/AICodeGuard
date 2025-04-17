@@ -1,4 +1,4 @@
-package com.ai.aicodeguard.application.auth;
+package com.ai.aicodeguard.presentation.request.auth;
 
 import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
@@ -10,7 +10,7 @@ import lombok.Data;
  * @Date: 2025/4/8 18:28
  */
 @Data
-public class UpdatePasswordDTO {
+public class UpdatePasswordRequest {
     @NotBlank(message = "原密码不能为空")
     private String oldPassword;
 

@@ -52,7 +52,7 @@ public class JwtRealm extends AuthorizingRealm {
 
         // 验证用户状态
         SysUser user = sysUserService.findByAccount(username);
-        if (ForbiddenEnum.DISABLE.getCode().toString().equals(user.getForbidden())) {
+        if (user.checkEnabled()) {
             throw new AuthenticationException(REnum.ACCOUNT_DISABLE.getMessage());
         }
 

@@ -1,11 +1,10 @@
 package com.ai.aicodeguard.application.service.impl;
 
-import com.ai.aicodeguard.application.auth.LoginDTO;
-import com.ai.aicodeguard.application.auth.RegisterDTO;
-import com.ai.aicodeguard.application.auth.UpdatePasswordDTO;
+import com.ai.aicodeguard.presentation.request.auth.LoginRequest;
+import com.ai.aicodeguard.presentation.request.auth.RegisterRequest;
+import com.ai.aicodeguard.presentation.request.auth.UpdatePasswordRequest;
 import com.ai.aicodeguard.application.service.interfaces.SysUserService;
 import com.ai.aicodeguard.domain.user.*;
-import com.ai.aicodeguard.infrastructure.common.enums.ForbiddenEnum;
 import com.ai.aicodeguard.infrastructure.common.enums.REnum;
 import com.ai.aicodeguard.infrastructure.common.util.JwtUtils;
 import com.ai.aicodeguard.infrastructure.persistence.*;
@@ -18,7 +17,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.*;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 /**
  * @ClassName: SysUserServiceImpl
@@ -48,23 +46,23 @@ public class SysUserServiceImpl implements SysUserService {
     private JwtUtils jwtUtils;
 
     @Override
-    public String login(LoginDTO loginDTO) {
-        if (loginDTO == null || StringUtils.isBlank(loginDTO.getAccount())) {
+    public String login(LoginRequest loginRequest) {
+        if (loginRequest == null || StringUtils.isBlank(loginRequest.getAccount())) {
             throw new RuntimeException(REnum.PARAM_ERROR.getMessage());
         }
 
         // 查询用户及其角色信息
-        SysUser user = sysUserRepository.findByAccountWithRole(loginDTO.getAccount())
+        SysUser user = sysUserRepository.findByAccountWithRole(loginRequest.getAccount())
                 .orElseThrow(() -> new RuntimeException(REnum.UNkNOWN_ACCOUNT.getMessage()));
 
         // 验证密码
-        String encryptedPassword = new Sha256Hash(loginDTO.getPassword(), user.getSalt()).toHex();
+        String encryptedPassword = new Sha256Hash(loginRequest.getPassword(), user.getSalt()).toHex();
         if (!user.getPassword().equals(encryptedPassword)) {
             throw new RuntimeException(REnum.USERNAME_OR_PASSWORD_ERROR.getMessage());
         }
 
         // 检查用户状态
-        if (ForbiddenEnum.DISABLE.getCode().toString().equals(user.getForbidden())) {
+        if (user.checkEnabled()) {
             throw new RuntimeException(REnum.ACCOUNT_DISABLE.getMessage());
         }
 
@@ -74,35 +72,35 @@ public class SysUserServiceImpl implements SysUserService {
 
         // 生成包含权限信息的token
         return jwtUtils.generateTokenWithClaims(user.getAccount(), Map.of(
-                "permissions", String.join(",", permissions),
-                "roles", String.join(",", roles)
+            "permissions", String.join(",", permissions),
+            "roles", String.join(",", roles)
         ));
     }
 
     @Override
     public SysUser findByAccount(String account) {
         return sysUserRepository.findByAccountWithRole(account)
-                .orElseThrow(() -> new RuntimeException(REnum.UNkNOWN_ACCOUNT.getMessage()));
+            .orElseThrow(() -> new RuntimeException(REnum.UNkNOWN_ACCOUNT.getMessage()));
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public void register(RegisterDTO registerDTO) {
+    public void register(RegisterRequest registerRequest) {
         // 检查账号是否存在
-        if(sysUserRepository.findByAccount(registerDTO.getAccount()).isPresent()) {
+        if(sysUserRepository.findByAccount(registerRequest.getAccount()).isPresent()) {
             throw new RuntimeException(REnum.ACCOUNT_EXIST.getMessage());
         }
 
         // 创建用户
         SysUser user = new SysUser();
-        user.setAccount(registerDTO.getAccount());
-        user.setName(registerDTO.getName());
+        user.setAccount(registerRequest.getAccount());
+        user.setName(registerRequest.getName());
         user.setForbidden("0");
 
         // 生成盐值和加密密码
         String salt = UUID.randomUUID().toString().replaceAll("-", "");
         user.setSalt(salt);
-        String encryptedPassword = new Sha256Hash(registerDTO.getPassword(), salt).toHex();
+        String encryptedPassword = new Sha256Hash(registerRequest.getPassword(), salt).toHex();
         user.setPassword(encryptedPassword);
 
         // 保存用户
@@ -116,7 +114,7 @@ public class SysUserServiceImpl implements SysUserService {
     }
 
     @Override
-    public void updatePassword(String account, UpdatePasswordDTO dto) {
+    public void updatePassword(String account, UpdatePasswordRequest dto) {
         SysUser user = findByAccount(account);
 
         // 验证原密码
@@ -148,8 +146,8 @@ public class SysUserServiceImpl implements SysUserService {
 
         // 生成新token，包含最新的权限信息
         return jwtUtils.generateTokenWithClaims(username, Map.of(
-                "permissions", String.join(",", permissions),
-                "roles", String.join(",", roles)
+            "permissions", String.join(",", permissions),
+            "roles", String.join(",", roles)
         ));
     }
 
@@ -157,9 +155,9 @@ public class SysUserServiceImpl implements SysUserService {
     public Set<String> getUserPermissions(Integer userId) {
         // 获取用户的所有角色ID
         Set<Integer> roleIds = userRoleRepository.findByUserId(userId)
-                .stream()
-                .map(SysUserRole::getRoleId)
-                .collect(Collectors.toSet());
+            .stream()
+            .map(SysUserRole::getRoleId)
+            .collect(Collectors.toSet());
 
         if (roleIds.isEmpty()) {
             return Collections.emptySet();
@@ -172,15 +170,15 @@ public class SysUserServiceImpl implements SysUserService {
             List<SysRoleResource> roleResources = roleResourceRepository.findByRoleId(roleId);
             if (!roleResources.isEmpty()) {
                 List<SysResource> resources = resourceRepository.findAllById(
-                        roleResources.stream()
-                                .map(SysRoleResource::getResourceId)
-                                .collect(Collectors.toList())
+                    roleResources.stream()
+                        .map(SysRoleResource::getResourceId)
+                        .collect(Collectors.toList())
                 );
 
                 permissions.addAll(resources.stream()
-                        .map(SysResource::getPerms)
-                        .filter(StringUtils::isNotBlank)
-                        .collect(Collectors.toSet()));
+                    .map(SysResource::getPerms)
+                    .filter(StringUtils::isNotBlank)
+                    .collect(Collectors.toSet()));
             }
         }
 
