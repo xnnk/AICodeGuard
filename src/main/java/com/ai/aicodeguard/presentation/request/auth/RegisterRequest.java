@@ -5,7 +5,7 @@ import lombok.Data;
 
 /**
  * @ClassName: RegisterDTO
- * @Description:
+ * @Description: 注册请求DTO
  * @Author: LZX
  * @Date: 2025/4/8 18:28
  */

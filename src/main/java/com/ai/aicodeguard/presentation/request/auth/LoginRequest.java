@@ -5,7 +5,7 @@ import lombok.Data;
 
 /**
  * @ClassName: LoginDTO
- * @Description:
+ * @Description: 登录请求DTO
  * @Author: LZX
  * @Date: 2025/4/8 12:00
  */

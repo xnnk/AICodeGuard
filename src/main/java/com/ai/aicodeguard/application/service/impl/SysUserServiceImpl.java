@@ -1,5 +1,6 @@
 package com.ai.aicodeguard.application.service.impl;
 
+import com.ai.aicodeguard.infrastructure.common.security.JwtToken;
 import com.ai.aicodeguard.presentation.request.auth.LoginRequest;
 import com.ai.aicodeguard.presentation.request.auth.RegisterRequest;
 import com.ai.aicodeguard.presentation.request.auth.UpdatePasswordRequest;
@@ -10,6 +11,7 @@ import com.ai.aicodeguard.infrastructure.common.util.JwtUtils;
 import com.ai.aicodeguard.infrastructure.persistence.*;
 import io.jsonwebtoken.Claims;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.shiro.SecurityUtils;
 import org.apache.shiro.crypto.hash.Sha256Hash;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -71,10 +73,20 @@ public class SysUserServiceImpl implements SysUserService {
         Set<String> roles = getUserRoles(user.getId());
 
         // 生成包含权限信息的token
-        return jwtUtils.generateTokenWithClaims(user.getAccount(), Map.of(
-            "permissions", String.join(",", permissions),
-            "roles", String.join(",", roles)
+        String token = jwtUtils.generateTokenWithClaims(user.getAccount(), Map.of(
+                "permissions", String.join(",", permissions),
+                "roles", String.join(",", roles)
         ));
+
+        // 创建JwtToken并登录
+        JwtToken jwtToken = new JwtToken(user.getAccount(), token);
+        try {
+            // 执行登录
+            SecurityUtils.getSubject().login(jwtToken);
+            return token;
+        } catch (Exception e) {
+            throw new RuntimeException("登录失败: " + e.getMessage());
+        }
     }
 
     @Override

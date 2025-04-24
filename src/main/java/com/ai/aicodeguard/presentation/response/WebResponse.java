@@ -14,6 +14,10 @@ public record WebResponse<T>(Integer status, String message, T data) {
 
     private static final int ERROR_CODE = 500;
 
+    private static final int UNAUTHORIZED_CODE = 401;
+
+    private static final int FORBIDDEN_CODE = 403;
+
     public Integer getStatus() {
         return status;
     }
@@ -57,5 +61,19 @@ public record WebResponse<T>(Integer status, String message, T data) {
 
     public static WebResponse<Void> fail(String message) {
         return new WebResponse<>(ERROR_CODE, message, null);
+    }
+
+    /**
+     * 未登录返回结果
+     */
+    public static <T> WebResponse<T> unauthorized(String message) {
+        return new WebResponse<>(UNAUTHORIZED_CODE, message, null);
+    }
+
+    /**
+     * 未授权返回结果
+     */
+    public static <T> WebResponse<T> forbidden(T data) {
+        return new WebResponse<>(FORBIDDEN_CODE, "", data);
     }
 }

@@ -5,7 +5,7 @@ import lombok.Data;
 
 /**
  * @ClassName: UpdatePasswordDTO
- * @Description:
+ * @Description: 更新密码请求DTO
  * @Author: LZX
  * @Date: 2025/4/8 18:28
  */

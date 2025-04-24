@@ -6,7 +6,7 @@ import org.springframework.context.ApplicationContextAware;
 import org.springframework.stereotype.Component;
 /**
  * @ClassName: SpringContextUtils
- * @Description:
+ * @Description: Spring上下文工具类
  * @Author: LZX
  * @Date: 2025/4/9 11:14
  */
