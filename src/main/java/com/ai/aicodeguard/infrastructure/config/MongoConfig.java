@@ -15,7 +15,6 @@ import org.springframework.data.mongodb.repository.config.EnableMongoRepositorie
  * @Date: 2025/4/18 14:02
  */
 @Configuration
-@EnableMongoRepositories(basePackages = "com.ai.aicodeguard.infrastructure.persistence.mongo")
 public class MongoConfig {
 
     @Value("${spring.data.mongodb.uri}")
