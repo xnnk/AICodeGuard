@@ -11,8 +11,6 @@ import lombok.Data;
  */
 @Data
 public class CreateConversationRequest {
-    @NotNull(message = "用户ID不能为空")
-    private Integer userId;
 
     private String modelType;
 }

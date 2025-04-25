@@ -12,8 +12,6 @@ import lombok.Data;
  */
 @Data
 public class SendMessageRequest {
-    @NotNull(message = "用户ID不能为空")
-    private Integer userId;
 
     @NotBlank(message = "对话ID不能为空")
     private String conversationId;

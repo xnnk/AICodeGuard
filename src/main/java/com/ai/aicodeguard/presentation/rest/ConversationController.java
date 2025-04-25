@@ -4,6 +4,7 @@ import com.ai.aicodeguard.infrastructure.ai.AIClientFactory;
 import com.ai.aicodeguard.infrastructure.ai.AIClientService;
 import com.ai.aicodeguard.infrastructure.ai.conversation.Conversation;
 import com.ai.aicodeguard.infrastructure.ai.conversation.ConversationManager;
+import com.ai.aicodeguard.infrastructure.common.util.ShiroUtils;
 import com.ai.aicodeguard.presentation.request.codegen.CreateConversationRequest;
 import com.ai.aicodeguard.presentation.request.codegen.SendMessageRequest;
 import com.ai.aicodeguard.presentation.response.WebResponse;
@@ -14,6 +15,7 @@ import org.springframework.web.bind.annotation.*;
 import jakarta.validation.Valid;
 
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * @ClassName: ConversationController
@@ -37,7 +39,7 @@ public class ConversationController {
     public WebResponse createConversation(@Valid @RequestBody CreateConversationRequest request) {
         try {
             AIClientService aiClient = aiClientFactory.getClient(request.getModelType());
-            Conversation conversation = aiClient.createConversation(request.getUserId().toString());
+            Conversation conversation = aiClient.createConversation(Objects.requireNonNull(ShiroUtils.getUserId()).toString());
 
             return WebResponse.success(Map.of(
                 "conversationId", conversation.getId(),
@@ -56,7 +58,7 @@ public class ConversationController {
     public WebResponse sendMessage(@Valid @RequestBody SendMessageRequest request) {
         try {
             Conversation conversation = conversationManager.getConversation(
-                request.getUserId().toString(),
+                String.valueOf(ShiroUtils.getUserId()),
                 request.getConversationId()
             );
 
