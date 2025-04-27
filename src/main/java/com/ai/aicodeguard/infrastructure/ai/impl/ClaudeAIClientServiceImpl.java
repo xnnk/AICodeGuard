@@ -201,7 +201,19 @@ public class ClaudeAIClientServiceImpl implements AIClientService {
             requestBody.put("max_tokens", 4000);
             requestBody.put("temperature", 0.2);
             requestBody.put("stream", true); // 开启流式响应
-            requestBody.put("system", "你是一个有用的AI助手，专注于帮助用户解决编程问题。");
+            // 提取系统消息
+            String systemMessage = "你是一个有用的AI助手，专注于帮助用户解决编程问题。";
+            List<Map<String, String>> filteredMessages = new ArrayList<>();
+            for (Map<String, String> msg : messages) {
+                if ("system".equals(msg.get("role"))) {
+                    systemMessage = msg.get("content");
+                } else {
+                    filteredMessages.add(msg);
+                }
+            }
+            // 使用过滤后的消息和单独的系统参数
+            requestBody.put("messages", filteredMessages);
+            requestBody.put("system", systemMessage);
 
             // 转换请求体为JSON
             String jsonBody = objectMapper.writeValueAsString(requestBody);
@@ -327,18 +339,32 @@ public class ClaudeAIClientServiceImpl implements AIClientService {
 
             OkHttpClient client = clientBuilder.build();
 
+            // 提取系统消息
+            String systemMessage = "你是一个专业的编程助手，专注于生成干净、高效的代码。";
+            List<Map<String, String>> filteredMessages = new ArrayList<>();
+
+            for (Map<String, String> message : messages) {
+                if ("system".equals(message.get("role"))) {
+                    // 如果有系统消息，则更新系统消息内容
+                    systemMessage = message.get("content");
+                } else {
+                    // 只保留非系统消息
+                    filteredMessages.add(message);
+                }
+            }
+
             // 构建请求体
             Map<String, Object> requestBody = new HashMap<>();
             requestBody.put("model", config.getModelName());
-            requestBody.put("messages", messages);
+            requestBody.put("messages", filteredMessages);
             requestBody.put("max_tokens", 4000);
             requestBody.put("temperature", 0.2);
             if (isStream) {
                 requestBody.put("stream", true);
             }
 
-            // Claude API使用独立的system参数
-            requestBody.put("system", "你是一个专业的编程助手，专注于生成干净、高效的代码。");
+            // 添加单独的系统参数
+            requestBody.put("system", systemMessage);
 
             // 转换请求体为JSON
             String jsonBody = objectMapper.writeValueAsString(requestBody);
