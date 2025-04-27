@@ -85,7 +85,8 @@
             <groupId>javax</groupId>
             <artifactId>javaee-api</artifactId>
             <version>8.0.1</version>
-        </dependency>        <dependency>
+        </dependency>
+        <dependency>
             <groupId>org.hibernate.validator</groupId>
             <artifactId>hibernate-validator</artifactId>
             <version>8.0.2.Final</version>
@@ -105,6 +106,18 @@
             <groupId>org.mybatis.spring.boot</groupId>
             <artifactId>mybatis-spring-boot-starter</artifactId>
             <version>3.0.0</version>
+        </dependency>
+
+        <!-- Spring Boot WebFlux -->
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-webflux</artifactId>
+            <version>6.2.5</version>
+        </dependency>
+
+        <dependency>
+            <groupId>com.squareup.okhttp3</groupId>
+            <artifactId>okhttp</artifactId>
         </dependency>
 
         <dependency>

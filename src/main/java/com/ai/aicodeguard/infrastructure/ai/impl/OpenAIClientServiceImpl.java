@@ -3,20 +3,15 @@ package com.ai.aicodeguard.infrastructure.ai.impl;
 import com.ai.aicodeguard.infrastructure.ai.AIClientService;
 import com.ai.aicodeguard.infrastructure.ai.AIModelProperties;
 import com.ai.aicodeguard.infrastructure.ai.AIModelType;
+import com.ai.aicodeguard.infrastructure.ai.StreamingResponseHandler;
 import com.ai.aicodeguard.infrastructure.ai.conversation.Conversation;
 import com.ai.aicodeguard.infrastructure.ai.conversation.ConversationManager;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestTemplate;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
+import java.util.*;
 
 /**
  * @ClassName: OpenAIClientServiceImpl
@@ -26,153 +21,21 @@ import java.util.stream.Collectors;
  */
 @Service
 @Slf4j
-@RequiredArgsConstructor
 public class OpenAIClientServiceImpl implements AIClientService {
-
-    private final AIModelProperties properties;
-
-    private final RestTemplate restTemplate;
-
-    private final ConversationManager conversationManager;
 
     @Override
     public String generateCode(String prompt, String language) {
-        log.info("调用OpenAI模型生成{}代码", language);
-        AIModelProperties.ModelConfig config = properties.getModel("openai");
-
-        // 使用completion端点
-        String endpoint = config.getEndpoint("completion");
-
-        // 构建提示词
-        String fullPrompt = buildPrompt(prompt, language);
-
-        // 构建请求头
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
-        headers.set("Authorization", "Bearer " + config.getApiKey());
-
-        // 构建请求体
-        Map<String, Object> requestBody = new HashMap<>();
-        requestBody.put("model", config.getModelName());
-
-        Map<String, Object> message = new HashMap<>();
-        message.put("role", "user");
-        message.put("content", fullPrompt);
-
-        requestBody.put("messages", List.of(message));
-        requestBody.put("temperature", 0.2);
-        requestBody.put("max_tokens", 4000);
-
-        HttpEntity<Map<String, Object>> request = new HttpEntity<>(requestBody, headers);
-
-        try {
-            // 发送请求
-            Map<String, Object> response = restTemplate.postForObject(
-                endpoint,
-                request,
-                Map.class
-            );
-
-            // 解析响应
-            if (response != null && response.containsKey("choices")) {
-                List<Map<String, Object>> choices = (List<Map<String, Object>>) response.get("choices");
-                if (!choices.isEmpty()) {
-                    Map<String, Object> choice = choices.get(0);
-                    Map<String, Object> message1 = (Map<String, Object>) choice.get("message");
-                    String content = (String) message1.get("content");
-
-                    // 提取代码块
-                    return extractCodeBlock(content, language);
-                }
-            }
-
-            log.error("无法从OpenAI响应中解析代码");
-            throw new RuntimeException("无法从OpenAI响应中解析代码");
-
-        } catch (Exception e) {
-            log.error("调用OpenAI模型生成代码失败", e);
-            throw new RuntimeException("调用OpenAI模型生成代码失败: " + e.getMessage());
-        }
+        return "";
     }
 
     @Override
     public String sendMessage(Conversation conversation, String message) {
-        log.info("在对话{}中发送消息", conversation.getId());
-        AIModelProperties.ModelConfig config = properties.getModel("openai");
-
-        // 使用conversation端点
-        String endpoint = config.getEndpoint("conversation");
-
-        // 添加用户消息到对话
-        conversation.addUserMessage(message);
-
-        // 构建请求头
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
-        headers.set("Authorization", "Bearer " + config.getApiKey());
-
-        // 构建消息列表
-        List<Map<String, String>> messages = conversation.getMessages().stream()
-                .map(msg -> {
-                    Map<String, String> msgMap = new HashMap<>();
-                    msgMap.put("role", msg.role());
-                    msgMap.put("content", msg.content());
-                    return msgMap;
-                })
-                .collect(Collectors.toList());
-
-        // 构建请求体
-        Map<String, Object> requestBody = new HashMap<>();
-        requestBody.put("model", config.getModelName());
-        requestBody.put("messages", messages);
-        requestBody.put("temperature", 0.7);
-
-        HttpEntity<Map<String, Object>> request = new HttpEntity<>(requestBody, headers);
-
-        try {
-            // 发送请求
-            Map<String, Object> response = restTemplate.postForObject(
-                endpoint,
-                request,
-                Map.class
-            );
-
-            // 解析响应
-            if (response != null && response.containsKey("choices")) {
-                List<Map<String, Object>> choices = (List<Map<String, Object>>) response.get("choices");
-                if (!choices.isEmpty()) {
-                    Map<String, Object> choice = choices.get(0);
-                    Map<String, Object> msgObj = (Map<String, Object>) choice.get("message");
-                    String content = (String) msgObj.get("content");
-
-                    // 添加AI回复到对话
-                    conversation.addAssistantMessage(content);
-
-                    // 更新对话
-                    conversationManager.updateConversation(conversation.getUserId(), conversation);
-
-                    return content;
-                }
-            }
-
-            String errorMsg = "无法从OpenAI响应中解析回复";
-            log.error(errorMsg);
-            throw new RuntimeException(errorMsg);
-
-        } catch (Exception e) {
-            log.error("在对话中调用OpenAI模型失败", e);
-            throw new RuntimeException("在对话中调用OpenAI模型失败: " + e.getMessage());
-        }
+        return "";
     }
 
     @Override
     public Conversation createConversation(String userId) {
-        return conversationManager.createConversation(userId, "openai");
-    }
-
-    @Override
-    public AIModelType getModelType() {
-        return AIModelType.OPENAI;
+        return null;
     }
 
     /**
@@ -190,9 +53,12 @@ public class OpenAIClientServiceImpl implements AIClientService {
 
     /**
      * 从AI响应中提取代码块
+     * @param content AI响应内容
+     * @param language 目标编程语言
+     * @return 提取的代码块
      */
     private String extractCodeBlock(String content, String language) {
-        // 同样的提取逻辑
+        // 相同的提取逻辑
         String codeBlockStart = "```" + language.toLowerCase();
         String codeBlockEnd = "```";
 
@@ -206,5 +72,14 @@ public class OpenAIClientServiceImpl implements AIClientService {
         }
 
         return content.trim();
+    }
+
+    @Override
+    public AIModelType getModelType() {
+        return null;
+    }
+
+    @Override
+    public void sendMessageStreaming(Conversation conversation, String message, SseEmitter emitter, StreamingResponseHandler handler) {
     }
 }

@@ -1,6 +1,7 @@
 package com.ai.aicodeguard.infrastructure.ai;
 
 import com.ai.aicodeguard.infrastructure.ai.conversation.Conversation;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 /**
  * @InterfaceName: AIClientService
@@ -37,4 +38,14 @@ public interface AIClientService {
      * @return 模型类型
      */
     AIModelType getModelType();
+
+    /**
+     * 在对话中发送消息并获取流式回复
+     * @param conversation 对话对象
+     * @param message 发送的消息
+     * @param emitter 服务器发送事件发射器
+     * @param handler 流式响应处理器
+     */
+    void sendMessageStreaming(Conversation conversation, String message,
+                              SseEmitter emitter, StreamingResponseHandler handler);
 }

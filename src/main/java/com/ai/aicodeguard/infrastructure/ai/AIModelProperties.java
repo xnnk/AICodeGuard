@@ -20,6 +20,14 @@ public class AIModelProperties {
 
     private Map<String, ModelConfig> models = new HashMap<>();
     private String defaultModel;
+    private ProxyConfig proxy;
+
+    @Data
+    public static class ProxyConfig {
+        private boolean enabled;
+        private String host;
+        private int port;
+    }
 
     @Data
     public static class ModelConfig {

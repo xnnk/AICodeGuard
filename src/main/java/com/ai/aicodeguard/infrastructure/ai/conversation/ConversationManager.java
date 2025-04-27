@@ -125,7 +125,7 @@ public class ConversationManager {
     /**
      * 定时清理过期对话（每天执行一次）
      * 对话超过30天未更新则视为过期
-     * @Scheduled注解用于定时任务
+     * @Scheduled 注解用于定时任务
      * cron表达式表示每天凌晨2点执行
      * @throws Exception
      */
