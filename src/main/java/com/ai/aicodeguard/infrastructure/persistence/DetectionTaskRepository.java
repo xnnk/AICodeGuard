@@ -30,4 +30,9 @@ public interface DetectionTaskRepository extends JpaRepository<DetectionTask, St
      * 根据代码ID和状态查询任务
      */
     Optional<DetectionTask> findByCodeIdAndStatus(String codeId, DetectionTask.TaskStatus status);
+
+    /**
+     * 根据代码ID查询最新的任务
+     */
+    Optional<DetectionTask> findFirstByCodeIdOrderByStartTimeDesc(String codeId);
 }

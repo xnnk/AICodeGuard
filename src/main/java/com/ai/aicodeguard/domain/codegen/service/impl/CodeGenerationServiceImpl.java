@@ -7,6 +7,7 @@ import com.ai.aicodeguard.infrastructure.ai.AIClientFactory;
 import com.ai.aicodeguard.infrastructure.ai.AIClientService;
 import com.ai.aicodeguard.infrastructure.mongo.GeneratedCodeDocumentRepository;
 import com.ai.aicodeguard.infrastructure.persistence.GeneratedCodeRepository;
+import com.ai.aicodeguard.infrastructure.security.SecurityScanningService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -28,7 +29,7 @@ public class CodeGenerationServiceImpl implements CodeGenerationService {
     private final AIClientFactory aiClientFactory;
     private final GeneratedCodeRepository generatedCodeRepository;
     private final GeneratedCodeDocumentRepository generatedCodeDocumentRepository;
-
+    private final SecurityScanningService securityScanningService; // 注入安全扫描服务
 
     @Transactional
     public GeneratedCodeDocument generateCode(String prompt, String language, Integer userId) {
@@ -81,6 +82,9 @@ public class CodeGenerationServiceImpl implements CodeGenerationService {
         codeDocument.setScanStatus(GeneratedCode.ScanStatus.PENDING.name());
 
         generatedCodeDocumentRepository.save(codeDocument);
+
+        // 触发安全扫描
+        securityScanningService.scanGeneratedCode(codeId);
 
         log.info("代码生成完成，代码ID: {}, 使用模型: {}", codeId, usedModelType);
         return codeDocument;

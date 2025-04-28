@@ -1,13 +1,10 @@
 package com.ai.aicodeguard.infrastructure.ai.impl;
 
 import com.ai.aicodeguard.infrastructure.ai.AIClientService;
-import com.ai.aicodeguard.infrastructure.ai.AIModelProperties;
 import com.ai.aicodeguard.infrastructure.ai.AIModelType;
 import com.ai.aicodeguard.infrastructure.ai.StreamingResponseHandler;
 import com.ai.aicodeguard.infrastructure.ai.conversation.Conversation;
-import com.ai.aicodeguard.infrastructure.ai.conversation.ConversationManager;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
