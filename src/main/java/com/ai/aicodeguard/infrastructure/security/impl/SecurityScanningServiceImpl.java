@@ -11,13 +11,18 @@ import com.ai.aicodeguard.infrastructure.persistence.DetectionTaskRepository;
 import com.ai.aicodeguard.infrastructure.persistence.GeneratedCodeRepository;
 import com.ai.aicodeguard.infrastructure.security.SecurityScanFactory;
 import com.ai.aicodeguard.infrastructure.security.SecurityScanService;
+import com.ai.aicodeguard.infrastructure.security.SecurityScanType;
 import com.ai.aicodeguard.infrastructure.security.SecurityScanningService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.Optional;
+import java.util.UUID;
 
 /**
  * @ClassName: SecurityScanningServiceImpl
@@ -30,111 +35,137 @@ import java.util.Optional;
 @Slf4j
 public class SecurityScanningServiceImpl implements SecurityScanningService {
 
-    private final SecurityScanFactory securityScanFactory;
-    private final GeneratedCodeRepository generatedCodeRepository;
-    private final GeneratedCodeDocumentRepository mongoGeneratedCodeRepository;
-    private final DetectionTaskRepository detectionTaskRepository;
-    private final VulnerabilityReportRepository vulnerabilityReportRepository;
+    private final GeneratedCodeRepository codeRepository;
+    private final GeneratedCodeDocumentRepository codeDocumentRepository;
+    private final DetectionTaskRepository taskRepository;
+    private final VulnerabilityReportRepository reportRepository;
+    private final AIModelScanServiceImpl aiModelScanService;
     private final KnowledgeGraphService knowledgeGraphService;
+    private final ThreadPoolTaskExecutor taskExecutor;
+
+    @Value("${security.scan.default-type}")
+    private SecurityScanType defaultScanType;
 
     @Override
     public void scanGeneratedCode(String codeId) {
-        try {
-            log.info("开始扫描代码: {}", codeId);
+        log.info("开始扫描代码: {}", codeId);
 
-            // 获取代码内容
-            Optional<GeneratedCode> codeOptional = generatedCodeRepository.findById(codeId);
-            Optional<GeneratedCodeDocument> documentOptional = mongoGeneratedCodeRepository.findById(codeId);
-
-            if (codeOptional.isEmpty() || documentOptional.isEmpty()) {
-                log.error("找不到需要扫描的代码: {}", codeId);
-                return;
-            }
-
-            GeneratedCode code = codeOptional.get();
-            GeneratedCodeDocument document = documentOptional.get();
-
-            // 更新为扫描中状态
-            code.setScanStatus(GeneratedCode.ScanStatus.PENDING);
-            generatedCodeRepository.save(code);
-            document.setScanStatus("PENDING");
-            mongoGeneratedCodeRepository.save(document);
-
-            // 获取默认扫描服务
-            SecurityScanService scanService = securityScanFactory.getDefaultService();
-
-            // 执行扫描
-            String taskId = scanService.scanCode(codeId, document.getContent(), document.getLanguage());
-
-            log.info("代码扫描任务已创建: {} -> {}", codeId, taskId);
-
-        } catch (Exception e) {
-            log.error("启动代码安全扫描失败", e);
-            // 更新为扫描失败状态
-            updateScanStatus(codeId, GeneratedCode.ScanStatus.FAILED);
+        // 1. 查找代码文档
+        Optional<GeneratedCodeDocument> codeDocOpt = codeDocumentRepository.findById(codeId);
+        if (codeDocOpt.isEmpty()) {
+            throw new RuntimeException("未找到指定的代码: " + codeId);
         }
+
+        // 2. 验证MySQL中是否存在对应记录
+        Optional<GeneratedCode> codeEntityOpt = codeRepository.findById(codeId);
+        if (codeEntityOpt.isEmpty()) {
+            throw new RuntimeException("未找到对应的代码元数据记录: " + codeId);
+        }
+
+        GeneratedCodeDocument document = codeDocOpt.get();
+        String language = document.getLanguage();
+        String content = document.getContent();
+
+        // 3. 创建扫描任务
+        String taskId = UUID.randomUUID().toString();
+        DetectionTask task = new DetectionTask();
+        task.setId(taskId);
+        task.setCodeId(codeId);
+        task.setStartTime(LocalDateTime.now());
+        task.setStatus(DetectionTask.TaskStatus.PENDING);
+        taskRepository.save(task);
+
+        log.info("代码扫描任务已创建: {} -> {}", codeId, taskId);
+
+        // 4. 使用单一线程处理整个流程，确保顺序执行
+        taskExecutor.execute(() -> {
+            try {
+                // 执行AI模型扫描代码
+                log.info("开始执行AI模型扫描，代码ID: {}", codeId);
+                String aiScanTaskId = aiModelScanService.scanCode(codeId, content, language);
+
+                // 轮询等待AI扫描完成
+                VulnerabilityReport report = null;
+                int maxRetries = 30; // 最多等待30次，每次2秒
+                int retryCount = 0;
+
+                while (report == null && retryCount < maxRetries) {
+                    try {
+                        Thread.sleep(2000);
+                        report = reportRepository.findByCodeId(codeId).orElse(null);
+                        if (report != null) {
+                            break;
+                        }
+                        retryCount++;
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                        throw new RuntimeException("等待AI扫描结果时被中断", e);
+                    }
+                }
+
+                if (report == null) {
+                    log.warn("无法获取AI扫描结果，可能扫描未完成或失败: {}", codeId);
+                    updateTaskStatus(taskId, DetectionTask.TaskStatus.FAILED, "无法获取AI扫描结果");
+                    updateCodeScanStatus(codeId, GeneratedCode.ScanStatus.FAILED);
+                    return;
+                }
+
+                // AI扫描完成后，更新知识图谱
+                log.info("AI扫描完成，发现{}个漏洞，开始更新知识图谱...",
+                        report.getVulnerabilities() != null ? report.getVulnerabilities().size() : 0);
+
+                if (report.getVulnerabilities() != null && !report.getVulnerabilities().isEmpty()) {
+                    knowledgeGraphService.updateGraphWithVulnerabilities(codeId, report);
+                    log.info("知识图谱更新完成，代码ID: {}", codeId);
+                } else {
+                    log.info("没有发现漏洞，无需更新知识图谱");
+                }
+
+                // 更新任务状态和代码扫描状态
+                updateTaskStatus(taskId, DetectionTask.TaskStatus.SUCCESS, null);
+                updateCodeScanStatus(codeId, GeneratedCode.ScanStatus.SUCCESS);
+
+            } catch (Exception e) {
+                log.error("代码扫描或知识图谱更新失败: {}", codeId, e);
+                updateTaskStatus(taskId, DetectionTask.TaskStatus.FAILED, e.getMessage());
+                updateCodeScanStatus(codeId, GeneratedCode.ScanStatus.FAILED);
+            }
+        });
+
+        log.info("代码扫描和知识图谱更新任务已提交，代码ID: {}", codeId);
     }
 
     @Override
     public VulnerabilityReport getScanResult(String codeId) {
-        log.info("获取代码扫描结果: {}", codeId);
-
-        // 查找最新的扫描任务
-        Optional<DetectionTask> taskOptional = detectionTaskRepository.findFirstByCodeIdOrderByStartTimeDesc(codeId);
-        if (taskOptional.isEmpty()) {
-            log.warn("找不到代码{}的扫描任务", codeId);
-            return null;
-        }
-
-        DetectionTask task = taskOptional.get();
-
-        // 如果任务已完成，返回结果
-        if (task.getStatus() == DetectionTask.TaskStatus.SUCCESS) {
-            Optional<VulnerabilityReport> reportOptional = vulnerabilityReportRepository.findByCodeId(codeId);
-            if (reportOptional.isPresent()) {
-                // 更新扫描状态
-                updateScanStatus(codeId, GeneratedCode.ScanStatus.SUCCESS);
-
-                // 更新知识图谱 - 新增逻辑
-                VulnerabilityReport report = reportOptional.get();
-                try {
-                    knowledgeGraphService.updateGraphWithVulnerabilities(codeId, report);
-                } catch (Exception e) {
-                    // 仅记录错误，不影响正常流程
-                    log.error("更新知识图谱失败", e);
-                }
-
-            }
-        } else if (task.getStatus() == DetectionTask.TaskStatus.FAILED) {
-            // 更新为扫描失败状态
-            updateScanStatus(codeId, GeneratedCode.ScanStatus.FAILED);
-        }
-
-        return null;
+        return reportRepository.findByCodeId(codeId).orElse(null);
     }
 
     /**
-     * 更新代码的扫描状态
+     * 更新任务状态
      */
-    private void updateScanStatus(String codeId, GeneratedCode.ScanStatus status) {
-        try {
-            Optional<GeneratedCode> codeOptional = generatedCodeRepository.findById(codeId);
-            Optional<GeneratedCodeDocument> documentOptional = mongoGeneratedCodeRepository.findById(codeId);
-
-            if (codeOptional.isPresent()) {
-                GeneratedCode code = codeOptional.get();
-                code.setScanStatus(status);
-                code.setScanTime(LocalDateTime.now());
-                generatedCodeRepository.save(code);
+    private void updateTaskStatus(String taskId, DetectionTask.TaskStatus status, String errorMessage) {
+        Optional<DetectionTask> taskOpt = taskRepository.findById(taskId);
+        if (taskOpt.isPresent()) {
+            DetectionTask task = taskOpt.get();
+            task.setStatus(status);
+            task.setEndTime(LocalDateTime.now());
+            if (errorMessage != null) {
+                task.setErrorMessage(errorMessage);
             }
+            taskRepository.save(task);
+        }
+    }
 
-            if (documentOptional.isPresent()) {
-                GeneratedCodeDocument document = documentOptional.get();
-                document.setScanStatus(status.name());
-                mongoGeneratedCodeRepository.save(document);
-            }
-        } catch (Exception e) {
-            log.error("更新代码扫描状态失败: {}", codeId, e);
+    /**
+     * 更新代码扫描状态
+     */
+    private void updateCodeScanStatus(String codeId, GeneratedCode.ScanStatus status) {
+        Optional<GeneratedCode> codeOpt = codeRepository.findById(codeId);
+        if (codeOpt.isPresent()) {
+            GeneratedCode code = codeOpt.get();
+            code.setScanStatus(status);
+            code.setScanTime(LocalDateTime.now());
+            codeRepository.save(code);
         }
     }
 }

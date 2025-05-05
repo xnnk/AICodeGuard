@@ -16,8 +16,13 @@ public interface SysUserRepository extends JpaRepository<SysUser, Integer> {
     Optional<SysUser> findByAccount(String account);
 
     @Query("""
-            SELECT u FROM SysUser u LEFT JOIN SysUserRole ur ON u.id = ur.userId
-            LEFT JOIN SysRole r ON ur.roleId = r.id WHERE u.account = ?1
+            SELECT u
+            FROM SysUser u
+            LEFT JOIN SysUserRole ur
+                ON u.id = ur.userId
+            LEFT JOIN SysRole r
+                ON ur.roleId = r.id
+            WHERE u.account = ?1
     """)
     Optional<SysUser> findByAccountWithRole(String account);
 }
