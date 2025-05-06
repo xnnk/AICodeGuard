@@ -107,7 +107,7 @@
 * **知识图谱**: `/api/graph/query` (具体端点可能需要查看 `KnowledgeGraphController`)
 * **用户管理**: `/api/users/...` (具体端点可能需要查看 `UserController`)
 
-*注意*: 大部分接口需要通过登录获取 JWT Token，并在请求头中携带 `Authorization: Bearer <YOUR_TOKEN>`。
+*注意*: 大部分接口需要通过登录获取 JWT Token，并在请求头中携带 `Authorization: <YOUR_TOKEN>`。
 
 ## 📚 技术文档
 
