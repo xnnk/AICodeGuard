@@ -1,0 +1,96 @@
+server:
+  port: 9090
+  servlet:
+   context-path: /api
+
+spring:
+  main:
+    allow-bean-definition-overriding: true
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://localhost:3306/ai-code-guard?useUnicode=true&characterEncoding=utf-8
+    username:
+    password:
+  jpa:
+    database-platform: org.hibernate.dialect.MySQLDialect
+    show-sql: true
+    hibernate:
+      ddl-auto: update
+      naming:
+        physical-strategy: org.hibernate.boot.model.naming.CamelCaseToUnderscoresNamingStrategy
+    properties:
+      hibernate:
+        format_sql: true
+  data:
+    mongodb:
+      uri: mongodb://localhost:27017
+      database: ai-code-guard
+    redis:
+      host: localhost
+      port: 6379
+      database: 1
+      timeout: 10000
+      lettuce:
+        pool:
+          max-active: 8
+          max-wait: -1ms
+          max-idle: 8
+          min-idle: 0
+  neo4j:
+    uri: bolt://localhost:7687
+    authentication:
+      username:
+      password:
+
+mybatis:
+  mapper-locations: classpath:mappers/*xml
+  type-aliases-package: com.ai.aicodeguard.domain
+  configuration:
+    map-underscore-to-camel-case: true
+    cache-enabled: false
+    use-generated-keys: true
+
+jwt:
+  secret: 符合JWT规范的密钥
+  expire: 86400000
+
+ai:
+  proxy:
+    enabled: true
+    host: localhost
+    port: 7890
+  models:
+    deepseek:
+      api-key: 必须填写
+      endpoints:
+        completion: https://api.deepseek.com/chat/completions
+        conversation: https://api.deepseek.com/chat/completions
+      timeout: 60000
+      model-name: deepseek-chat
+    openai:
+      api-key: 必须填写
+      endpoints:
+        completion: https://api.openai.com/v1/chat/completions
+        conversation: https://api.openai.com/v1/chat/completions
+      timeout: 60000
+      model-name: o4-mini-2025-04-16
+    claude:
+      api-key: 必须填写
+      endpoints:
+        completion: https://api.anthropic.com/v1/messages
+        conversation: https://api.anthropic.com/v1/messages
+      timeout: 60000
+      model-name: claude-3-5-sonnet-20241022
+
+task:
+  pool:
+    core-pool-size: 5
+    max-pool-size: 30
+    queue-capacity: 50
+    keep-alive-seconds: 60
+
+security:
+  scan:
+    enabled: true
+    default-type: AI_MODEL
+    timeout: 300000  # 5分钟超时
