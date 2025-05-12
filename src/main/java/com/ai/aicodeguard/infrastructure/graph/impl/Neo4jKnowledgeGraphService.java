@@ -225,7 +225,7 @@ public class Neo4jKnowledgeGraphService implements KnowledgeGraphService {
             1. **节点全属性声明**：每个MERGE语句必须完整声明节点所有定义属性
             2. **禁止属性简写**：禁止使用SET子句补充属性，所有属性必须在MERGE时完整声明
             3. **节点独立定义**：禁止跨语句引用节点变量（如v1, cp1等）
-            4. **属性值规范**：字符串用单引号、时间用datetime()、UUID用随机函数生成
+            4. **属性值规范**：字符串用单引号、时间用datetime()
             5. **关系精确锚定**：关系必须通过属性值直接锚定，禁止使用变量引用
             6. **禁止使用RETURN**：禁止使用RETURN语句，所有Cypher必须以分号结尾
             7. **无修复建议**：如果没有修复建议，返回空字符串
@@ -238,8 +238,8 @@ public class Neo4jKnowledgeGraphService implements KnowledgeGraphService {
             - ModelDetection {detectionId: string, modelVersion: string, timestamp: datetime}
   
             **关系类型**（带属性必须声明）：
-            - (CodePattern)-[MANIFESTS_IN]->(Vulnerability)
-            - (ModelDetection)-[IDENTIFIES {confidence: float}]->(Vulnerability)
+            - (CodePattern{patternId: string})-[MANIFESTS_IN]->(Vulnerability{cweId: string})
+            - (ModelDetection{detectionId: string})-[IDENTIFIES {confidence: float}]->(Vulnerability{cweId: string})
 
             ### 输入数据
             代码语言：%s
@@ -248,21 +248,24 @@ public class Neo4jKnowledgeGraphService implements KnowledgeGraphService {
             严重等级：%s
             漏洞位置：%d
             修复建议：%s
+            ID后缀：%s
 
             ### 生成规则
             1. 每个节点单独MERGE，使用完整属性匹配
             2. 关系通过节点全名和节点唯一属性值直接建立，示例：
-               MERGE (c:CodePattern {patternId:'cp_123', language:'Java'});
+               MERGE (c:CodePattern {patternId:'cp_ID后缀', language:'Java'});
                MERGE (v:Vulnerability {cweId:'CWE-79', name:'XSS', severity:'CRITICAL'});
-               MERGE (c:CodePattern {patternId:'cp_123', language:'Java'})-[r:MANIFESTS_IN]->(v:Vulnerability {cweId:'CWE-79', name:'XSS', severity:'CRITICAL'});
-            3. ID生成规则：前缀使用"%s_"+apoc.create.uuid()截取前8位
+               MERGE (c:CodePattern {patternId:'cp_ID后缀', language:'Java'})-[r:MANIFESTS_IN]->(v:Vulnerability {cweId:'CWE-79', name:'XSS', severity:'CRITICAL'});
+            3. 不需要生成唯一性ID，关系必须通过属性值直接锚定，确保禁止使用变量引用
             4. 时间戳统一用datetime().epochMillis形式
-            5. 置信度计算：confidence: toFloat(rand()*10)/10
+            5. 置信度计算：请根据输入数据给出置信度，范围0-1
+            6. CodePattern和ModelDetection节点的patternId和detectionId必须包含ID后缀
+            7. ModelDetection的modelVersion必须是claude-3-7-sonnet
 
             ### 违规控制
             1. **简写拦截**：检测到SET子句立即终止生成
             2. **属性缺失检测**：节点缺少任意定义属性则重新生成
-            3. **变量引用阻断**：发现节点变量引用（如v, cp）直接报错
+            3. **变量引用阻断**：发现节点变量引用（如使用单个v, cp）直接报错
 
             请输出符合规范的Cypher语句，严格确保节点全属性声明。
             """,
@@ -272,7 +275,7 @@ public class Neo4jKnowledgeGraphService implements KnowledgeGraphService {
                 vulnerability.getSeverity().name(),
                 vulnerability.getLine(),
                 vulnerability.getSuggestion(),
-                UUID.randomUUID().toString().substring(0, 8) // 为ID生成前缀
+                UUID.randomUUID().toString().substring(0, 8) // 为ID生成后缀
         );
     }
 
