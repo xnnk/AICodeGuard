@@ -133,13 +133,27 @@ public class Neo4jKnowledgeGraphService implements KnowledgeGraphService {
      * 例如：从"MERGE (v:Vulnerability {..."提取"Vulnerability"
      */
     private String extractNodeType(String statement) {
-        int labelStart = statement.indexOf(':');
+        // 查找节点标签格式 如 (x:Label)
+        int openParen = statement.indexOf('(');
+        if (openParen == -1) return null;
+
+        int labelStart = statement.indexOf(':', openParen);
         if (labelStart == -1) return null;
 
+        // 找到标签结束位置（空格、大括号或右括号）
         int propertyStart = statement.indexOf('{', labelStart);
-        if (propertyStart == -1) return null;
+        int closeParen = statement.indexOf(')', labelStart);
+        int spaceAfter = statement.indexOf(' ', labelStart);
 
-        return statement.substring(labelStart + 1, propertyStart).trim();
+        // 找出最近的终止符
+        int end = Integer.MAX_VALUE;
+        if (propertyStart > -1) end = propertyStart;
+        if (closeParen > -1) end = Math.min(end, closeParen);
+        if (spaceAfter > -1) end = Math.min(end, spaceAfter);
+
+        if (end == Integer.MAX_VALUE) return null;
+
+        return statement.substring(labelStart + 1, end).trim();
     }
 
     /**
@@ -147,23 +161,36 @@ public class Neo4jKnowledgeGraphService implements KnowledgeGraphService {
      * 例如：从"MERGE (v:Vulnerability {cweId: 'CWE-89'..."提取"CWE-89"
      */
     private String extractNodeKey(String statement) {
-        // 简化实现，针对特定格式提取
-        // 实际应用中可能需要更复杂的解析逻辑
-        if (statement.contains("cweId:")) {
-            int start = statement.indexOf("cweId:") + 7;
-            int end = statement.indexOf("'", start + 1);
-            if (start > 7 && end > start) {
-                return statement.substring(start, end);
-            }
-        } else if (statement.contains("patternId:")) {
-            int start = statement.indexOf("patternId:") + 11;
-            int end = statement.indexOf("'", start + 1);
-            if (start > 11 && end > start) {
-                return statement.substring(start, end);
-            }
+        Map<String, String> keyPrefixes = Map.of(
+                "Vulnerability", "cweId:",
+                "CodePattern", "patternId:",
+                "ModelDetection", "detectionId:"
+        );
+
+        String nodeType = extractNodeType(statement);
+        if (nodeType == null || !keyPrefixes.containsKey(nodeType)) {
+            return null;
         }
 
-        return null;
+        String keyPrefix = keyPrefixes.get(nodeType);
+        int start = statement.indexOf(keyPrefix);
+        if (start == -1) return null;
+
+        start += keyPrefix.length();
+        // 跳过可能的空格
+        while (start < statement.length() && Character.isWhitespace(statement.charAt(start))) {
+            start++;
+        }
+
+        // 跳过单引号
+        if (start < statement.length() && statement.charAt(start) == '\'') {
+            start++;
+        }
+
+        int end = statement.indexOf('\'', start);
+        if (end == -1) return null;
+
+        return statement.substring(start, end);
     }
 
     @Override
@@ -219,55 +246,57 @@ public class Neo4jKnowledgeGraphService implements KnowledgeGraphService {
      */
     private String buildGraphPrompt(String codeContent, String language, VulnerabilityReport.Vulnerability vulnerability) {
         return String.format("""
-            你是一个Neo4j知识图谱专家，请根据以下规则生成Cypher语句：
-          
-            ### 强制格式规范
-            1. **节点全属性声明**：每个MERGE语句必须完整声明节点所有定义属性
-            2. **禁止属性简写**：禁止使用SET子句补充属性，所有属性必须在MERGE时完整声明
-            3. **节点独立定义**：禁止跨语句引用节点变量（如v1, cp1等）
-            4. **属性值规范**：字符串用单引号、时间用datetime()
-            5. **关系精确锚定**：关系必须通过属性值直接锚定，禁止使用变量引用
-            6. **禁止使用RETURN**：禁止使用RETURN语句，所有Cypher必须以分号结尾
-            7. **无修复建议**：如果没有修复建议，返回空字符串
-            8. Vulnerability节点的severity属性必须是CRITICAL/HIGH/MEDIUM/LOW之一
-
-            ### 知识图谱模式定义
-            **节点类型**（必须包含全部属性）：
+            You are a Neo4j knowledge graph expert tasked with generating Cypher statements based on specific rules and input data. Follow these instructions carefully to create accurate and compliant Cypher statements.
+            
+            Knowledge Graph Schema:
+            Node Types (must include all properties):
             - Vulnerability {cweId: string, name: string, severity: string}
             - CodePattern {patternId: string, language: string, codeSnippet: string, line: integer}
             - ModelDetection {detectionId: string, modelVersion: string, timestamp: datetime}
-  
-            **关系类型**（带属性必须声明）：
+            
+            Relationship Types (must declare properties if present):
             - (CodePattern{patternId: string})-[MANIFESTS_IN]->(Vulnerability{cweId: string})
             - (ModelDetection{detectionId: string})-[IDENTIFIES {confidence: float}]->(Vulnerability{cweId: string})
-
-            ### 输入数据
-            代码语言：%s
-            代码内容：%s
-            漏洞类型（含CWE）：%s
-            严重等级：%s
-            漏洞位置：%d
-            修复建议：%s
-            ID后缀：%s
-
-            ### 生成规则
-            1. 每个节点单独MERGE，使用完整属性匹配
-            2. 关系通过节点全名和节点唯一属性值直接建立，示例：
-               MERGE (c:CodePattern {patternId:'cp_ID后缀', language:'Java'});
-               MERGE (v:Vulnerability {cweId:'CWE-79', name:'XSS', severity:'CRITICAL'});
-               MERGE (c:CodePattern {patternId:'cp_ID后缀', language:'Java'})-[r:MANIFESTS_IN]->(v:Vulnerability {cweId:'CWE-79', name:'XSS', severity:'CRITICAL'});
-            3. 不需要生成唯一性ID，关系必须通过属性值直接锚定，确保禁止使用变量引用
-            4. 时间戳统一用datetime().epochMillis形式
-            5. 置信度计算：请根据输入数据给出置信度，范围0-1
-            6. CodePattern和ModelDetection节点的patternId和detectionId必须包含ID后缀
-            7. ModelDetection的modelVersion必须是claude-3-7-sonnet
-
-            ### 违规控制
-            1. **简写拦截**：检测到SET子句立即终止生成
-            2. **属性缺失检测**：节点缺少任意定义属性则重新生成
-            3. **变量引用阻断**：发现节点变量引用（如使用单个v, cp）直接报错
-
-            请输出符合规范的Cypher语句，严格确保节点全属性声明。
+            
+            Input Data:
+            You will receive the following input variables:
+            <code_language>{{%s}}</code_language>
+            <code_content>{{%s}}</code_content>
+            <vulnerability_type>{{%s}}</vulnerability_type>
+            <severity>{{%s}}</severity>
+            <vulnerability_location>{{%d}}</vulnerability_location>
+            <fix_suggestion>{{%s}}</fix_suggestion>
+            <id_suffix>{{%s}}</id_suffix>
+            
+            Cypher Generation Rules:
+            1. Use MERGE for each node, declaring all properties.
+            2. Establish relationships using full node names and unique property values.
+            3. Use datetime().epochMillis for timestamps.
+            4. Calculate confidence (range 0-1) based on input data.
+            5. Include the ID_SUFFIX in patternId and detectionId for CodePattern and ModelDetection nodes.
+            6. Use 'claude-3-7-sonnet' as the modelVersion for ModelDetection.
+            
+            Instructions:
+            1. Generate separate MERGE statements for each node type (Vulnerability, CodePattern, ModelDetection).
+            2. Before creating relationships, use MATCH statements to find the relevant nodes by their unique IDs (cweId, patternId, detectionId).
+            3. Create relationship statements using the matched nodes to form a complete Cypher statement.
+            4. Ensure all required properties are included for each node and relationship.
+            5. Use single quotes for string values and datetime() for time values.
+            6. Do not use variables to reference nodes across statements.
+            7. Do not use SET clauses to add properties; declare all properties in the MERGE statement.
+            8. Do not use RETURN statements; end all Cypher statements with a semicolon.
+            9. Ensure the Vulnerability node's severity is one of CRITICAL/HIGH/MEDIUM/LOW.
+            
+            Error Checking and Compliance:
+            - Verify that all required properties are present for each node.
+            - Ensure no SET clauses are used to add properties.
+            - Check that relationship creation is done by first matching relevant nodes by their IDs.
+            - Confirm that relationships are established using matched nodes, forming complete Cypher statements.
+            
+            Output Format:
+            Provide your Cypher statements within <cypher> tags. Each statement should be on a new line and end with a semicolon. Do not include any explanations or comments within these tags.
+            
+            Your final output should only include the <cypher>, with no additional text or explanations.
             """,
                 language,
                 truncateCode(codeContent), // 截断过长代码
@@ -295,8 +324,17 @@ public class Neo4jKnowledgeGraphService implements KnowledgeGraphService {
      * 从AI回复中提取Cypher语句
      */
     private String extractCypherQuery(String aiOutput) {
-        // 处理可能的代码块
-        if (aiOutput.contains("```cypher")) {
+        // 处理 <cypher> 标签格式
+        if (aiOutput.contains("<cypher>") && aiOutput.contains("</cypher>")) {
+            int start = aiOutput.indexOf("<cypher>") + 8;
+            int end = aiOutput.indexOf("</cypher>");
+            if (end > start) {
+                return aiOutput.substring(start, end).trim();
+            }
+        }
+
+        // 处理可能的代码块格式
+        else if (aiOutput.contains("```cypher")) {
             int start = aiOutput.indexOf("```cypher") + 9;
             int end = aiOutput.indexOf("```", start);
             if (end > start) {
@@ -304,7 +342,7 @@ public class Neo4jKnowledgeGraphService implements KnowledgeGraphService {
             }
         }
 
-        if (aiOutput.contains("```")) {
+        else if (aiOutput.contains("```")) {
             int start = aiOutput.indexOf("```") + 3;
             int end = aiOutput.indexOf("```", start);
             if (end > start) {

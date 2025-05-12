@@ -92,7 +92,11 @@ public class SecurityScanningServiceImpl implements SecurityScanningService {
                 while (report == null && retryCount < maxRetries) {
                     try {
                         Thread.sleep(2000);
-                        report = reportRepository.findByCodeId(codeId).orElse(null);
+                        report = reportRepository.findAllByCodeId(codeId)
+                                .stream()
+                                // 列表中只留下最后一个扫描结果
+                                .reduce((first, second) -> second)
+                                .orElse(null);;
                         if (report != null) {
                             break;
                         }
