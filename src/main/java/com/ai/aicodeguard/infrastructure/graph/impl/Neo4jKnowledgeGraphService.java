@@ -281,7 +281,7 @@ public class Neo4jKnowledgeGraphService implements KnowledgeGraphService {
             2. Before creating relationships, use MATCH statements to find the relevant nodes by their unique IDs (cweId, patternId, detectionId).
             3. Create relationship statements using the matched nodes to form a complete Cypher statement.
             4. Ensure all required properties are included for each node and relationship.
-            5. Use single quotes for string values and datetime() for time values.
+            5. Use single quotes for string values and datetime().epochMillis for time values.
             6. Do not use variables to reference nodes across statements.
             7. Do not use SET clauses to add properties; declare all properties in the MERGE statement.
             8. Do not use RETURN statements; end all Cypher statements with a semicolon.
