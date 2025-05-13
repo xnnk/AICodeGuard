@@ -24,4 +24,9 @@ public interface GeneratedCodeDocumentRepository extends MongoRepository<Generat
      * 根据检测状态查询代码文档
      */
     List<GeneratedCodeDocument> findByScanStatus(String scanStatus);
+    
+    /**
+     * 根据用户ID查询可见的代码文档（按创建时间降序）
+     */
+    List<GeneratedCodeDocument> findByUserIdAndIsVisibleTrueOrderByCreatedAtDesc(Integer userId);
 }

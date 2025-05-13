@@ -56,4 +56,9 @@ public class GeneratedCodeDocument {
      * 检测状态（冗余字段，便于查询）
      */
     private String scanStatus;
+
+    /**
+     * 前端界面是否显示，默认为true
+     */
+    private Boolean isVisible;
 }
