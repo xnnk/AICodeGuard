@@ -3,6 +3,7 @@
 [![语言](https://img.shields.io/badge/language-Java-orange.svg)](https://www.java.com)
 [![框架](https://img.shields.io/badge/framework-Spring%20Boot-brightgreen.svg)](https://spring.io/projects/spring-boot)
 [![构建工具](https://img.shields.io/badge/build-Maven-red.svg)](https://maven.apache.org/)
+
 欢迎来到 AICodeGuard！本项目是一个基于 AI 大模型的智能应用，旨在提供代码生成、代码安全漏洞检测以及知识图谱构建与查询等功能。
 
 ## ✨ 主要功能
@@ -140,7 +141,7 @@
 
 ## 📄 许可证
 
-[请在此处添加你的开源许可证信息，例如 MIT, Apache 2.0 等]
+[MIT LICENSE](https://github.com/xnnk/AICodeGuard/blob/master/LICENSE)
 
 ---
 
