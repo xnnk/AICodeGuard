@@ -1,5 +1,6 @@
 package com.ai.aicodeguard.infrastructure.config;
 
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
@@ -35,6 +36,12 @@ public class RedisConfig {
 
     @Bean
     public ObjectMapper objectMapper() {
-        return new ObjectMapper();                                      // 创建ObjectMapper实例
+        ObjectMapper objectMapper = new ObjectMapper();
+        // 注册 JavaTimeModule 以支持 Java 8 Date/Time API
+        objectMapper.registerModule(new JavaTimeModule());
+        // 其他ObjectMapper的自定义配置
+        // objectMapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+        // objectMapper.setDateFormat(new SimpleDateFormat("yyyy-MM-dd HH:mm:ss"));
+        return objectMapper;
     }
 }

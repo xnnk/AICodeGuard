@@ -17,12 +17,10 @@ import org.neo4j.driver.Result;
 import org.neo4j.driver.Session;
 import org.neo4j.driver.exceptions.Neo4jException;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Optional;
-import java.util.UUID;
+import java.util.*;
 
 /**
  * @ClassName: Neo4jKnowledgeGraphService
@@ -404,4 +402,35 @@ public class Neo4jKnowledgeGraphService implements KnowledgeGraphService {
             return false;
         }
     }
+
+    @Override
+    public List<Map<String, Object>> executeLlmLedReadOnlyQuery(String cypherQuery) {
+        if (!StringUtils.hasText(cypherQuery)) {
+            log.warn("接收到空的 Cypher 查询语句，跳过执行。");
+            return java.util.Collections.emptyList();
+        }
+        String upperCaseQuery = cypherQuery.toUpperCase();
+        if (upperCaseQuery.contains("CREATE ") || upperCaseQuery.contains("DELETE ") ||
+            upperCaseQuery.contains("SET ") || upperCaseQuery.contains("REMOVE ") ||
+            upperCaseQuery.contains("MERGE ")) {
+            log.error("检测到非只读操作，拒绝执行 LLM 生成的 Cypher: {}", cypherQuery);
+            throw new com.ai.aicodeguard.infrastructure.graph.exception.GraphServiceException("LLM 生成的 Cypher 查询包含非只读操作，执行被拒绝。");
+        }
+        log.debug("准备执行 LLM 生成的只读 Cypher: {}", cypherQuery);
+        try (Session session = neo4jDriver.session()) {
+            return session.executeRead(tx -> {
+                Result result = tx.run(cypherQuery);
+                java.util.List<Map<String, Object>> results = new java.util.ArrayList<>();
+                while (result.hasNext()) {
+                    Record record = result.next();
+                    results.add(record.asMap());
+                }
+                return results;
+            });
+        } catch (Neo4jException e) {
+            log.error("执行 LLM 生成的 Cypher 查询失败: {} - 错误: {}", cypherQuery, e.getMessage(), e);
+            throw new com.ai.aicodeguard.infrastructure.graph.exception.GraphServiceException("执行 LLM 生成的 Cypher 查询时发生数据库错误: " + e.getMessage(), e);
+        }
+    }
 }
+

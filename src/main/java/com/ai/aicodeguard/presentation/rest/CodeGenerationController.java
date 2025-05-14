@@ -11,6 +11,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
 
 import jakarta.validation.Valid;
+import com.ai.aicodeguard.presentation.response.codegen.EnhancedCodeAnalysisResult;
+import com.ai.aicodeguard.application.service.interfaces.EnhancedCodeAnalysisService;
 
 /**
  * @ClassName: CodeGenerationController
@@ -25,6 +27,7 @@ import jakarta.validation.Valid;
 public class CodeGenerationController {
 
     private final CodeGenerationService codeGenerationService;
+    private final EnhancedCodeAnalysisService enhancedCodeAnalysisService; // 新增注入
 
     /**
      * 生成代码接口
@@ -58,6 +61,24 @@ public class CodeGenerationController {
         } catch (Exception e) {
             log.error("代码生成失败", e);
             return WebResponse.fail("代码生成失败: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 生成代码并进行增强分析的接口
+     */
+    @PostMapping("/generate-enhanced")
+    public WebResponse generateCodeWithEnhancedAnalysis(@Valid @RequestBody CodeGenerationRequest request) {
+        try {
+            Integer userId = ShiroUtils.getUserId();
+            if (userId == null) {
+                return WebResponse.fail("未登录或会话已过期，请重新登录");
+            }
+            EnhancedCodeAnalysisResult result = enhancedCodeAnalysisService.generateCodeAndAnalyzeWithKnowledgeGraph(request, userId);
+            return WebResponse.success(result);
+        } catch (Exception e) {
+            log.error("代码生成及增强分析失败", e);
+            return WebResponse.fail("代码生成及增强分析失败: " + e.getMessage());
         }
     }
 

@@ -1,6 +1,8 @@
 package com.ai.aicodeguard.infrastructure.graph;
 
 import com.ai.aicodeguard.domain.codegen.document.VulnerabilityReport;
+import java.util.List;
+import java.util.Map;
 
 /**
  * @ClassName: KnowledgeGraphService
@@ -25,4 +27,12 @@ public interface KnowledgeGraphService {
      * @return 关联的代码模式列表
      */
     String findCodePatternsForVulnerability(String language, String vulnerabilityType);
+
+    /**
+     * 执行由 LLM 生成的（经过安全校验的）只读 Cypher 查询。
+     * @param cypherQuery 待执行的 Cypher 查询语句
+     * @return 查询结果列表，每个 Map 代表一行结果，键为列名，值为单元格数据。
+     */
+    List<Map<String, Object>> executeLlmLedReadOnlyQuery(String cypherQuery);
 }
+

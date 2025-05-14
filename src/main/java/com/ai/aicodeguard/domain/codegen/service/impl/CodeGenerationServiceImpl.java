@@ -80,6 +80,7 @@ public class CodeGenerationServiceImpl implements CodeGenerationService {
         codeDocument.setUserId(userId);
         codeDocument.setCreatedAt(now);
         codeDocument.setScanStatus(GeneratedCode.ScanStatus.PENDING.name());
+        codeDocument.setIsVisible(true);
 
         generatedCodeDocumentRepository.save(codeDocument);
 
