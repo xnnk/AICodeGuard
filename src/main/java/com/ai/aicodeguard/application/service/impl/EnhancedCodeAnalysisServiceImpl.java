@@ -399,7 +399,7 @@ public class EnhancedCodeAnalysisServiceImpl implements EnhancedCodeAnalysisServ
             
             Relationship Types:
             - (CodePattern)-[:MANIFESTS_IN]->(Vulnerability) // Code pattern manifests a certain vulnerability
-            - (ModelDetection)-[:IDENTIFIES {confidence: float}]->(CodePattern) // AI model detection identifies a code pattern
+            - (ModelDetection)-[:IDENTIFIES {confidence: float}]->(Vulnerability) // AI model detection identifies a vulnerability
             - (GeneratedCode)-[:CONTAINS_PATTERN]->(CodePattern) // Generated code contains a certain code pattern (if applicable)
             - (GeneratedCode)-[:HAS_VULNERABILITY]->(Vulnerability) // Generated code has a certain vulnerability (if applicable)
             
