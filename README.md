@@ -1,4 +1,4 @@
-# AICodeGuard: AI 驱动的代码安全与生成平台
+# AICodeGuard: AI 驱动的代码安全与生成平台 (实现了自驱型知识图谱AKG - Automated Knowledge Graph)
 
 [![语言](https://img.shields.io/badge/language-Java-orange.svg)](https://www.java.com)
 [![框架](https://img.shields.io/badge/framework-Spring%20Boot-brightgreen.svg)](https://spring.io/projects/spring-boot)
