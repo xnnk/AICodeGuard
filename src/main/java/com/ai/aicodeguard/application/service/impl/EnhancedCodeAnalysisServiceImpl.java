@@ -57,13 +57,13 @@ public class EnhancedCodeAnalysisServiceImpl implements EnhancedCodeAnalysisServ
         long startTime = System.currentTimeMillis();
         log.info("开始为用户 {} 生成 {} 代码并进行增强分析，需求: {}", userId, request.getLanguage(), request.getPrompt());
 
-        // --- 步骤 1: 初步代码生成 ---
+        // 1: 初步代码生成
         AIClientService codeGenerationClient = aiClientFactory.getClient(request.getModelType()); // 或者选择特定的代码生成模型
         String initialGeneratedCodeContent = codeGenerationClient.generateCode(request.getPrompt(), request.getLanguage());
         String modelUsedForGeneration = codeGenerationClient.getModelType().name();
         log.info("初步代码生成完成，使用模型: {}", modelUsedForGeneration);
 
-        // 保存初步生成的代码元数据和文档 (与 CodeGenerationServiceImpl 类似逻辑)
+        // 保存初步生成的代码元数据和文档 (与 CodeGenerationServiceImpl类似)
         String codeId = UUID.randomUUID().toString();
         LocalDateTime now = LocalDateTime.now();
 
@@ -90,7 +90,7 @@ public class EnhancedCodeAnalysisServiceImpl implements EnhancedCodeAnalysisServ
         generatedCodeDocumentRepository.save(codeDocument);
 
 
-        // --- 步骤 2: LLM 决策并生成 Cypher 查询 ---
+        // 2: LLM 决策并生成 Cypher 查询
         log.info("代码 {}：开始让 LLM 生成知识图谱查询语句", codeId);
         AIClientService cypherGenerationClient = aiClientFactory.getClient("claude"); // 假设使用 Claude 进行Cypher生成，因为它在处理复杂指令和结构化输出方面可能表现较好
         String knowledgeGraphSchema = getKnowledgeGraphSchemaDescription(); // 获取图谱 Schema 描述
@@ -104,7 +104,7 @@ public class EnhancedCodeAnalysisServiceImpl implements EnhancedCodeAnalysisServ
         }
 
 
-        // --- 步骤 3: 执行知识图谱查询 ---
+        // 3: 执行知识图谱查询
         List<Map<String, Object>> knowledgeGraphData = new ArrayList<>();
         if (!cypherQueries.isEmpty()) {
             log.info("代码 {}：开始执行知识图谱查询", codeId);
@@ -130,7 +130,7 @@ public class EnhancedCodeAnalysisServiceImpl implements EnhancedCodeAnalysisServ
         }
 
 
-        // --- 步骤 4: 结合知识图谱进行代码分析 ---
+        // 4: 结合知识图谱进行代码分析
         log.info("代码 {}：开始结合知识图谱数据进行最终代码分析", codeId);
         String modelUsedForAnalysis = null;
         VulnerabilityReport analysisReport = null;
@@ -184,7 +184,7 @@ public class EnhancedCodeAnalysisServiceImpl implements EnhancedCodeAnalysisServ
      * @return Prompt 字符串
      */
     private String buildCypherGenerationPrompt(String generatedCode, String language, String kgSchemaDescription) {
-        // 注意：这个 Prompt 需要精心设计和迭代优化
+        // 注意
         return String.format("""
             You are tasked with analyzing a piece of code and determining what information needs to be queried from a knowledge graph to assist in a detailed code evaluation, particularly focusing on security vulnerabilities and best practices. Your goal is to generate a set of Cypher query statements to retrieve this useful information based on the provided knowledge graph schema.
             
@@ -248,7 +248,7 @@ public class EnhancedCodeAnalysisServiceImpl implements EnhancedCodeAnalysisServ
                 queries.add(query);
             }
         }
-        // 如果没有找到代码块，但响应本身可能就是一条Cypher语句（需要更鲁棒的判断）
+        // 如果没有找到代码块，但响应本身可能就是一条Cypher语句
         if (queries.isEmpty() && llmResponse.toUpperCase().contains("MATCH") && !llmResponse.contains("```")) {
             // 尝试将整个响应视为单个查询，但这可能不准确，需要谨慎处理
             String cleanedResponse = llmResponse.lines()
@@ -265,8 +265,7 @@ public class EnhancedCodeAnalysisServiceImpl implements EnhancedCodeAnalysisServ
 
 
     /**
-     * 校验 Cypher 查询是否为只读且基本有效。
-     * 这是一个基础的校验，实际生产中可能需要更复杂的解析和安全策略。
+     * 校验 Cypher 查询是否为只读且基本有效
      */
     private boolean isValidReadOnlyCypher(String cypherQuery) {
         if (!StringUtils.hasText(cypherQuery)) {
@@ -301,7 +300,7 @@ public class EnhancedCodeAnalysisServiceImpl implements EnhancedCodeAnalysisServ
             kgDataJson = "[]"; // 提供空数组作为回退
         }
 
-        // 注意：这个 Prompt 也需要精心设计和迭代优化
+        // 注意
         return String.format("""
             You are a security expert tasked with analyzing code for vulnerabilities and best practices. You will be provided with code in a specific programming language, along with relevant information from a knowledge graph to assist in your analysis. Your task is to produce a comprehensive security vulnerability analysis and best practices assessment.
             
@@ -373,7 +372,6 @@ public class EnhancedCodeAnalysisServiceImpl implements EnhancedCodeAnalysisServ
             if (report.getScanTime() == null) {
                 report.setScanTime(LocalDateTime.now());
             }
-            // 可以在这里对解析出的报告进行进一步的校验或处理
             return report;
         } catch (JsonProcessingException e) {
             log.error("代码 {}：从LLM响应解析 VulnerabilityReport JSON 失败: {} - 响应内容: {}", codeId, e.getMessage(), llmResponse.substring(0, Math.min(llmResponse.length(), 500)));
@@ -389,13 +387,9 @@ public class EnhancedCodeAnalysisServiceImpl implements EnhancedCodeAnalysisServ
     }
 
     /**
-     * 获取知识图谱的 Schema 描述。
-     * 在实际应用中，这个方法应该返回一个动态的或者配置化的 Schema 描述。
-     * 这里为了演示，返回一个硬编码的字符串。
+     * 获取知识图谱的 Schema 描述
      */
     private String getKnowledgeGraphSchemaDescription() {
-        // 这个描述需要与您的实际图谱结构一致，并且要足够清晰，以便LLM理解
-        // 您的 Neo4jKnowledgeGraphService.buildGraphPrompt 方法中已经有了一个很好的起点
         return """
             Node Types:
             - Vulnerability: {cweId: string (unique identifier, e.g., CWE-ID), name: string, severity: string (CRITICAL, HIGH, MEDIUM, LOW), description: string}
@@ -405,7 +399,7 @@ public class EnhancedCodeAnalysisServiceImpl implements EnhancedCodeAnalysisServ
             
             Relationship Types:
             - (CodePattern)-[:MANIFESTS_IN]->(Vulnerability) // Code pattern manifests a certain vulnerability
-            - (ModelDetection)-[:IDENTIFIES {confidence: float}]->(Vulnerability) // AI model detection identifies a vulnerability
+            - (ModelDetection)-[:IDENTIFIES {confidence: float}]->(CodePattern) // AI model detection identifies a code pattern
             - (GeneratedCode)-[:CONTAINS_PATTERN]->(CodePattern) // Generated code contains a certain code pattern (if applicable)
             - (GeneratedCode)-[:HAS_VULNERABILITY]->(Vulnerability) // Generated code has a certain vulnerability (if applicable)
             
