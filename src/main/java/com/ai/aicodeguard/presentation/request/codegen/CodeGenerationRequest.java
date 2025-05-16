@@ -16,7 +16,6 @@ public class CodeGenerationRequest {
     /**
      * 用户ID
      */
-    @NotNull(message = "用户ID不能为空")
     private Integer userId;
 
     /**
