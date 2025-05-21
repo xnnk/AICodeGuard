@@ -89,7 +89,11 @@ public class Neo4jKnowledgeGraphService implements KnowledgeGraphService {
     private String removeDuplicateMergeStatements(String cypher) {
         // 按语句分割
         String[] statements = cypher.split(";\\s*\\n+");
-        Map<String, String> uniqueStatements = new HashMap<>();
+
+        /*
+         * 修复了这个bug，将HashMap改为LinkedHashMap以保持插入顺序
+         */
+        Map<String, String> uniqueStatements = new LinkedHashMap<>();
 
         for (String statement : statements) {
             statement = statement.trim();
@@ -128,7 +132,7 @@ public class Neo4jKnowledgeGraphService implements KnowledgeGraphService {
 
     /**
      * 提取MERGE语句中的节点类型
-     * 例如：从"MERGE (v:Vulnerability {..."提取"Vulnerability"
+     * 从"MERGE (v:Vulnerability {..."提取"Vulnerability"
      */
     private String extractNodeType(String statement) {
         // 查找节点标签格式 如 (x:Label)
@@ -156,7 +160,7 @@ public class Neo4jKnowledgeGraphService implements KnowledgeGraphService {
 
     /**
      * 提取MERGE语句中的主键值
-     * 例如：从"MERGE (v:Vulnerability {cweId: 'CWE-89'..."提取"CWE-89"
+     * 从"MERGE (v:Vulnerability {cweId: 'CWE-89'..."提取"CWE-89"
      */
     private String extractNodeKey(String statement) {
         Map<String, String> keyPrefixes = Map.of(
@@ -225,7 +229,7 @@ public class Neo4jKnowledgeGraphService implements KnowledgeGraphService {
      * 使用AI生成Cypher查询语句
      */
     private String generateCypherWithAI(String codeContent, String language, VulnerabilityReport.Vulnerability vulnerability) {
-        // 使用claude3.5sonnet来生成cypher
+        // 使用claude3.7sonnet来生成cypher
         AIClientService aiClient = aiClientFactory.getClient("claude");
 
         // 构建提示词
@@ -238,7 +242,6 @@ public class Neo4jKnowledgeGraphService implements KnowledgeGraphService {
         return extractCypherQuery(cypherQuery);
     }
 
-    // TODO: 目前有点BUG，这里会重复生成相同名称的节点，我需要引导大模型使用节点名称来创建节点
     /**
      * 构建用于生成Cypher的提示词
      */
@@ -254,7 +257,7 @@ public class Neo4jKnowledgeGraphService implements KnowledgeGraphService {
             
             Relationship Types (must declare properties if present):
             - (CodePattern{patternId: string})-[MANIFESTS_IN]->(Vulnerability{cweId: string})
-            - (ModelDetection{detectionId: string})-[IDENTIFIES {confidence: float}]->(Vulnerability{cweId: string})
+            - (ModelDetection{detectionId: string})-[IDENTIFIES {confidence: float}]->(CodePattern{patternId: string})
             
             Input Data:
             You will receive the following input variables:

@@ -15,6 +15,7 @@ import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.RequestBody;
 import okhttp3.Response;
+import org.jetbrains.annotations.NotNull;
 import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
@@ -53,15 +54,7 @@ public class ClaudeAIClientServiceImpl implements AIClientService {
         log.info("调用Claude模型生成{}代码", language);
         AIModelProperties.ModelConfig config = properties.getModel("claude");
 
-        // 构建提示词
-        String fullPrompt = buildPrompt(prompt, language);
-
-        // 构建请求消息
-        List<Map<String, String>> messages = new ArrayList<>();
-        Map<String, String> message = new HashMap<>();
-        message.put("role", "user");
-        message.put("content", fullPrompt);
-        messages.add(message);
+        List<Map<String, String>> messages = getMaps(prompt, language);
 
         try {
             // 发送非流式请求
@@ -73,6 +66,34 @@ public class ClaudeAIClientServiceImpl implements AIClientService {
             log.error("调用Claude模型生成代码失败", e);
             throw new RuntimeException("调用Claude模型生成代码失败: " + e.getMessage());
         }
+    }
+
+    @NotNull
+    private List<Map<String, String>> getMaps(String prompt, String language) {
+        String fullPrompt = "";
+
+        if (language.contains("cypher")) {
+            fullPrompt = String.format(
+                    """
+                    你是一个专业的Cypher查询生成器。请根据以下需求生成Cypher查询：
+                    
+                    %s
+                    
+                    请确保生成的查询符合Cypher语法，并且能够高效地执行。
+                    """, prompt
+            );
+        } else {
+            // 构建提示词
+            fullPrompt = buildPrompt(prompt, language);
+        }
+
+        // 构建请求消息
+        List<Map<String, String>> messages = new ArrayList<>();
+        Map<String, String> message = new HashMap<>();
+        message.put("role", "user");
+        message.put("content", fullPrompt);
+        messages.add(message);
+        return messages;
     }
 
     /**

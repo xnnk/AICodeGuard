@@ -96,7 +96,7 @@ public class SecurityScanningServiceImpl implements SecurityScanningService {
                                 .stream()
                                 // 列表中只留下最后一个扫描结果
                                 .reduce((first, second) -> second)
-                                .orElse(null);;
+                                .orElse(null);
                         if (report != null) {
                             break;
                         }

@@ -92,7 +92,7 @@ public class EnhancedCodeAnalysisServiceImpl implements EnhancedCodeAnalysisServ
 
         // 2: LLM 决策并生成 Cypher 查询
         log.info("代码 {}：开始让 LLM 生成知识图谱查询语句", codeId);
-        AIClientService cypherGenerationClient = aiClientFactory.getClient("claude"); // 假设使用 Claude 进行Cypher生成，因为它在处理复杂指令和结构化输出方面可能表现较好
+        AIClientService cypherGenerationClient = aiClientFactory.getClient("claude"); // 使用 Claude 进行Cypher生成，因为它在处理复杂指令和结构化输出方面可能表现较好
         String knowledgeGraphSchema = getKnowledgeGraphSchemaDescription(); // 获取图谱 Schema 描述
         String cypherGenPrompt = buildCypherGenerationPrompt(initialGeneratedCodeContent, request.getLanguage(), knowledgeGraphSchema);
 
@@ -399,7 +399,7 @@ public class EnhancedCodeAnalysisServiceImpl implements EnhancedCodeAnalysisServ
             
             Relationship Types:
             - (CodePattern)-[:MANIFESTS_IN]->(Vulnerability) // Code pattern manifests a certain vulnerability
-            - (ModelDetection)-[:IDENTIFIES {confidence: float}]->(Vulnerability) // AI model detection identifies a vulnerability
+            - (ModelDetection)-[:IDENTIFIES {confidence: float}]->(CodePattern) // AI model detection identifies a code pattern
             - (GeneratedCode)-[:CONTAINS_PATTERN]->(CodePattern) // Generated code contains a certain code pattern (if applicable)
             - (GeneratedCode)-[:HAS_VULNERABILITY]->(Vulnerability) // Generated code has a certain vulnerability (if applicable)
             
